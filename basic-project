@@ -1,0 +1,81 @@
+asic project with code on colab
+While Google Colab provides free access to NVIDIA GPUs (like the T4, L4, or A100), it does not natively support vGPU or InfiniBand because these require specific hardware virtualization layers and high-performance physical interconnects not available in the Colab sandbox. 
+GeeksforGeeks
+GeeksforGeeks
+ +3
+However, you can simulate and manage MIG (Multi-Instance GPU) if you have a Colab Pro/Pro+ subscription that grants access to an A100 or H100. 
+drlee.io
+drlee.io
+ +1
+1. Check for MIG Compatibility
+First, verify if your assigned GPU supports MIG (required: Ampere architecture or newer). 
+NVIDIA Docs
+NVIDIA Docs
+ +2
+python
+# Check GPU type and if MIG is supported
+!nvidia-smi -q | grep -i "MIG Mode"
+Use code with caution.
+
+2. Basic Project: Enabling & Partitioning MIG
+If you are on an A100/H100 instance, you can use these commands to partition your GPU into smaller, isolated instances. 
+Scaleway
+Scaleway
+python
+# 1. Enable MIG mode (requires root, usually works in Colab terminal or as ! command)
+!nvidia-smi -i 0 -mig 1
+
+# 2. List possible profiles (e.g., 1g.5gb, 2g.10gb, 3g.20gb)
+!nvidia-smi mig -lgip
+
+# 3. Create a partition (Example: 2 instances of 1g.5gb)
+# Profile ID 19 is typically the 1g.5gb slice on an A100
+!nvidia-smi mig -cgi 19,19 -C
+
+# 4. Verify your new virtual GPU instances
+!nvidia-smi -L
+Use code with caution.
+
+Note: In a standard Colab environment, you may lack the permissions to change the global MIG state. This is best executed on a Deep Learning VM or Google Compute Engine instance where you have full sudo access. 
+Massed Compute
+Massed Compute
+ +1
+3. High-Performance Networking Code (RDMA/InfiniBand)
+While Colab lacks InfiniBand hardware, you can write and compile the Verbs API code used to manage such networks. 
+DEV Community
+DEV Community
+cpp
+%%writefile ib_test.c
+#include <infiniband/verbs.h>
+#include <stdio.h>
+
+int main() {
+    struct ibv_device **dev_list;
+    int num_devices;
+
+    // Retrieve list of InfiniBand/RDMA devices
+    dev_list = ibv_get_device_list(&num_devices);
+    if (!dev_list) {
+        printf("No RDMA devices found (Expected in Colab).\n");
+        return 1;
+    }
+
+    printf("Found %d RDMA devices.\n", num_devices);
+    ibv_free_device_list(dev_list);
+    return 0;
+}
+Use code with caution.
+
+To compile in Colab:
+bash
+!apt-get install libibverbs-dev -y
+!gcc ib_test.c -o ib_test -libverbs
+!./ib_test
+Use code with caution.
+
+Summary of Requirements
+Feature 	Colab (Free)	Colab (Pro/A100)	Bare-Metal/Private Cloud
+GPU Access	T4 (Limited)	A100/L4	H100/A100
+MIG	❌ No	✅ Supported (if A100)	✅ Full Control
+vGPU	❌ No	❌ No	✅ Via NVIDIA AI Enterprise
+InfiniBand	❌ No	❌ No	✅ Physical HW required
